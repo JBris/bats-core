@@ -183,7 +183,7 @@ Apart from the changed lookup rules, `bats_load_library` behaves like `load`.
 __Note:__ As seen above `load.bash` is the entry point for libraries and
 meant to load more files from its directory or other libraries.
 
-__Note:__ Obviously, the actual `BATS_LIB_PATH` is highly dependant on the environment.
+__Note:__ Obviously, the actual `BATS_LIB_PATH` is highly dependent on the environment.
 To maintain a uniform location across systems, (distribution) package maintainers
 are encouraged to use `/usr/lib/bats/` as the install path for libraries where possible.
 However, if the package manager has another preferred location, like `npm` or `brew`,
@@ -245,7 +245,7 @@ after) all tests of the test run.
 <details>
   <summary>Example of setup/{,_file,_suite} (and teardown{,_file,_suite}) call order</summary>
 For example the following call order would result from two files (file 1 with
-tests 1 and 2, and file 2 with test3) with a corresponding `setup_suite.bash` file beeing tested:
+tests 1 and 2, and file 2 with test3) with a corresponding `setup_suite.bash` file being tested:
 
 ```text
 setup_suite # from setup_suite.bash
@@ -267,6 +267,28 @@ teardown_suite # from setup_suite.bash
 
 </details>
 <!-- markdownlint-enable MD033 -->
+
+## `bats_require_minimum_version <Bats version number>`
+
+Added in [v1.7.0](https://github.com/bats-core/bats-core/releases/tag/v1.7.0)
+
+Code for newer versions of Bats can be incompatible with older versions.
+In the best case this will lead to an error message and a failed test suite.
+In the worst case, the tests will pass erroneously, potentially masking a failure.
+
+Use `bats_require_minimum_version <Bats version number>` to avoid this.
+It communicates in a concise manner, that you intend the following code to be run
+under the given Bats version or higher.
+
+Additionally, this function will communicate the current Bats version floor to
+subsequent code, allowing e.g. Bats' internal warning to give more informed warnings.
+
+__Note__: By default, calling `bats_require_minimum_version` with versions before
+Bats 1.7.0 will fail regardless of the required version as the function is not
+available. However, you can use the
+[bats-backports plugin](https://github.com/bats-core/bats-backports) to make
+your code usable with older versions, e.g. during migration while your CI system
+is not yet upgraded.
 
 ## Code outside of test cases
 
@@ -354,6 +376,9 @@ There are several global variables you can use to introspect on Bats tests:
 - `BATS_TEST_NAME_PREFIX` will be prepended to the description of each test on 
    stdout and in reports.
 - `$BATS_TEST_DESCRIPTION` is the description of the current test case.
+- `BATS_TEST_RETRIES` is the maximum number of additional attempts that will be
+  made on a failed test before it is finally considered failed.
+  The default of 0 means the test must pass on the first attempt.
 - `$BATS_TEST_NUMBER` is the (1-based) index of the current test case in the test file.
 - `$BATS_SUITE_TEST_NUMBER` is the (1-based) index of the current test case in the test suite (over all files).
 - `$BATS_TMPDIR` is the base temporary directory used by bats to create its

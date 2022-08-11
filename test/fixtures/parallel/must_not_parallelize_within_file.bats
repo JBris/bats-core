@@ -1,13 +1,13 @@
 setup_file() {
     export FILE_MARKER
     FILE_MARKER=$(mktemp "${BATS_RUN_TMPDIR}/file_marker.XXXXXX")
-    if [[ -n "${DISABLE_IN_SETUP_FILE_FUNCTION}" ]]; then
+    if [[ -n "${DISABLE_IN_SETUP_FILE_FUNCTION:-}" ]]; then
         export BATS_NO_PARALLELIZE_WITHIN_FILE=true
         echo "setup_file() sets BATS_NO_PARALLELIZE_WITHIN_FILE=true" >&2
     fi
 }
 
-if [[ -n "${DISABLE_OUTSIDE_ALL_FUNCTIONS}" ]]; then
+if [[ -n "${DISABLE_OUTSIDE_ALL_FUNCTIONS:-}" ]]; then
     export BATS_NO_PARALLELIZE_WITHIN_FILE=true
     echo "File sets BATS_NO_PARALLELIZE_WITHIN_FILE=true" >&2
 fi
@@ -17,7 +17,7 @@ teardown_file() {
 }
 
 setup() {
-    if [[ -n "${DISABLE_IN_SETUP_FUNCTION}" ]]; then
+    if [[ -n "${DISABLE_IN_SETUP_FUNCTION:-}" ]]; then
         export BATS_NO_PARALLELIZE_WITHIN_FILE=true
         echo "setup() sets BATS_NO_PARALLELIZE_WITHIN_FILE=true" >&3
     fi
@@ -29,12 +29,12 @@ teardown() {
 }
 
 @test "test 1" {
-    if [[ -n "${DISABLE_IN_TEST_FUNCTION}" ]]; then
+    if [[ -n "${DISABLE_IN_TEST_FUNCTION:-}" ]]; then
         export BATS_NO_PARALLELIZE_WITHIN_FILE=true
         echo "Test function sets BATS_NO_PARALLELIZE_WITHIN_FILE=true" >&3
     fi
     # stretch the time this test runs to prevent accidental serialization by the scheduler
-    # if both tests could run in parallel, this will increase the likelyhood of detecting it
+    # if both tests could run in parallel, this will increase the likelihood of detecting it
     # by delaying this test's teardown past the other's
     sleep 3
 }

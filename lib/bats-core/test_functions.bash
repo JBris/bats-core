@@ -3,6 +3,9 @@
 BATS_TEST_DIRNAME="${BATS_TEST_FILENAME%/*}"
 BATS_TEST_NAMES=()
 
+# shellcheck source=lib/bats-core/warnings.bash
+source "$BATS_ROOT/lib/bats-core/warnings.bash"
+
 # find_in_bats_lib_path echoes the first recognized load path to
 # a library in BATS_LIB_PATH or relative to BATS_TEST_DIRNAME.
 #
@@ -23,11 +26,11 @@ find_in_bats_lib_path() { # <return-var> <library-name>
     if [[ -f "$path/$library_name" ]]; then
       printf -v "$return_var" "%s" "$path/$library_name" 
       # A library load path was found, return
-      return
+      return 0
     elif [[ -f "$path/$library_name/load.bash" ]]; then
       printf -v "$return_var" "%s" "$path/$library_name/load.bash" 
       # A library load path was found, return
-      return
+      return 0
     fi
   done
 
@@ -62,7 +65,7 @@ bats_internal_load() {
           printf "Error while sourcing library loader at '%s'\n" "$library_load_path" >&2
           return 1
       fi
-      return
+      return 0
   fi
 
   printf "Passed library load path is neither a library loader nor library directory: %s\n" "$library_load_path" >&2
@@ -96,17 +99,17 @@ bats_load_safe() {
 
   if [[ -f "$slug.bash" ]]; then
     bats_internal_load "$slug.bash"
-    return 
+    return $?
   elif [[ -f "$slug" ]]; then
     bats_internal_load "$slug"
-    return
+    return $?
   fi
 
   # loading from PATH (retained for backwards compatibility)
   if [[ ! -f "$1" ]] && type -P "$1" >/dev/null; then
     # shellcheck disable=SC1090
     source "$1"
-    return
+    return $?
   fi
 
   # No library load path can be found
@@ -157,6 +160,7 @@ bats_load_library() { # <slug>
 # load acts like bats_load_safe but exits the shell instead of returning 1.
 load() {
     if ! bats_load_safe "$@"; then
+      echo "${FUNCNAME[0]} $LINENO" >&3
         exit 1
     fi
 }
@@ -195,8 +199,10 @@ run() { # [!|-N] [--keep-empty-lines] [--separate-stderr] [--] <command to run..
   local expected_rc=
   local keep_empty_lines=
   local output_case=merged
+  local has_flags=
   # parse options starting with -
   while [[ $# -gt 0 ]] && [[ $1 == -* || $1 == '!' ]]; do
+    has_flags=1
     case "$1" in
       '!')
         expected_rc=-1
@@ -204,10 +210,10 @@ run() { # [!|-N] [--keep-empty-lines] [--separate-stderr] [--] <command to run..
       -[0-9]*)
         expected_rc=${1#-}
         if [[ $expected_rc =~ [^0-9] ]]; then
-          printf "Usage error: run: '=NNN' requires numeric NNN (got: %s)\n" "$expected_rc" >&2
+          printf "Usage error: run: '-NNN' requires numeric NNN (got: %s)\n" "$expected_rc" >&2
           return 1
         elif [[ $expected_rc -gt 255 ]]; then
-          printf "Usage error: run: '=NNN': NNN must be <= 255 (got: %d)\n" "$expected_rc" >&2
+          printf "Usage error: run: '-NNN': NNN must be <= 255 (got: %d)\n" "$expected_rc" >&2
           return 1
         fi
       ;;
@@ -228,6 +234,10 @@ run() { # [!|-N] [--keep-empty-lines] [--separate-stderr] [--] <command to run..
     esac
     shift
   done
+
+  if [[ -n $has_flags ]]; then
+    bats_warn_minimum_guaranteed_version "Using flags on \`run\`" 1.5.0
+  fi
 
   local pre_command=
 
@@ -274,6 +284,7 @@ run() { # [!|-N] [--keep-empty-lines] [--separate-stderr] [--] <command to run..
     printf "%s\n" "$output" 
   fi
 
+
   if [[ -n "$expected_rc" ]]; then
     if [[ "$expected_rc" = "-1" ]]; then
       if [[ "$status" -eq 0 ]]; then
@@ -285,6 +296,8 @@ run() { # [!|-N] [--keep-empty-lines] [--separate-stderr] [--] <command to run..
       BATS_ERROR_SUFFIX=", expected exit code $expected_rc, got $status"
       return 1
     fi
+  elif [[ "$status" -eq 127 ]]; then # "command not found"
+    bats_generate_warning 1 "$BATS_RUN_COMMAND"
   fi
   # don't leak our trap into surrounding code
   trap bats_interrupt_trap INT
@@ -334,4 +347,11 @@ bats_test_begin() {
 bats_test_function() {
   local test_name="$1"
   BATS_TEST_NAMES+=("$test_name")
+}
+
+# decides whether a failed test should be run again
+bats_should_retry_test() {
+  # test try number starts at 1
+  # 0 retries means run only first try
+  (( BATS_TEST_TRY_NUMBER <= BATS_TEST_RETRIES ))
 }

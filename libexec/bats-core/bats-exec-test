@@ -2,8 +2,6 @@
 set -eET
 
 # Variables used in other scripts.
-BATS_COUNT_ONLY=''
-BATS_TEST_FILTER=''
 BATS_ENABLE_TIMING=''
 BATS_EXTENDED_SYNTAX=''
 BATS_TRACE_LEVEL="${BATS_TRACE_LEVEL:-0}"
@@ -15,15 +13,6 @@ BATS_TEST_NAME_PREFIX="${BATS_TEST_NAME_PREFIX:-}"
 
 while [[ "$#" -ne 0 ]]; do
   case "$1" in
-  -c)
-    # shellcheck disable=SC2034
-    BATS_COUNT_ONLY=1
-    ;;
-  -f)
-    shift
-    # shellcheck disable=SC2034
-    BATS_TEST_FILTER="$1"
-    ;;
   -T)
     BATS_ENABLE_TIMING='-T'
     ;;
@@ -60,6 +49,7 @@ export BATS_TEST_FILENAME="$1"
 export BATS_TEST_NAME="$2"
 export BATS_SUITE_TEST_NUMBER="$3"
 export BATS_TEST_NUMBER="$4"
+BATS_TEST_TRY_NUMBER="$5"
 
 if [[ -z "$BATS_TEST_FILENAME" ]]; then
   printf 'usage: bats-exec-test <filename>\n' >&2
@@ -70,7 +60,7 @@ elif [[ ! -f "$BATS_TEST_FILENAME" ]]; then
 fi
 
 bats_create_test_tmpdirs() {
-  local tests_tmpdir="${BATS_RUN_TMPDIR}/test/"
+  local tests_tmpdir="${BATS_RUN_TMPDIR}/test"
   if ! mkdir -p "$tests_tmpdir"; then
     printf 'Failed to create: %s\n' "$tests_tmpdir" >&2
     exit 1
@@ -78,7 +68,7 @@ bats_create_test_tmpdirs() {
 
   BATS_TEST_TMPDIR="$tests_tmpdir/$BATS_SUITE_TEST_NUMBER"
   if ! mkdir "$BATS_TEST_TMPDIR"; then
-    printf 'Failed to create BATS_TEST_TMPDIR: %s\n' "$BATS_TEST_TMPDIR" >&2
+    printf 'Failed to create BATS_TEST_TMPDIR%d: %s\n' "$BATS_TEST_TRY_NUMBER" "$BATS_TEST_TMPDIR" >&2
     exit 1
   fi
 
@@ -134,6 +124,7 @@ bats_exit_trap() {
 
   local print_bats_out="${BATS_SHOW_OUTPUT_OF_SUCCEEDING_TESTS}"
 
+  local should_retry=''
   if [[ -z "$BATS_TEST_COMPLETED" || -z "$BATS_TEARDOWN_COMPLETED" || "${BATS_INTERRUPTED-NOTSET}" != NOTSET ]]; then
     if [[ "$BATS_ERROR_STATUS" -eq 0 ]]; then
       # For some versions of bash, `$?` may not be set properly for some error
@@ -147,32 +138,46 @@ bats_exit_trap() {
       # output, since there's no way to reach the `bats_exit_trap` call.
       BATS_ERROR_STATUS=1
     fi
-    printf 'not ok %d %s\n' "$BATS_SUITE_TEST_NUMBER" "${BATS_TEST_NAME_PREFIX:-}${BATS_TEST_DESCRIPTION}${BATS_TEST_TIME}" >&3
-    local stack_trace
-    bats_get_failure_stack_trace stack_trace
-    bats_print_stack_trace "${stack_trace[@]}" >&3
-    bats_print_failed_command "${stack_trace[@]}" >&3
+    if bats_should_retry_test; then
+      should_retry=1
+      status=126 # signify retry
+      rm -r "$BATS_TEST_TMPDIR" # clean up for retry
+    else
+      printf 'not ok %d %s\n' "$BATS_SUITE_TEST_NUMBER" "${BATS_TEST_NAME_PREFIX:-}${BATS_TEST_DESCRIPTION}${BATS_TEST_TIME}" >&3
+      local stack_trace
+      bats_get_failure_stack_trace stack_trace
+      bats_print_stack_trace "${stack_trace[@]}" >&3
+      bats_print_failed_command "${stack_trace[@]}" >&3
 
-    if [[ $BATS_PRINT_OUTPUT_ON_FAILURE && -n "${output:-}" ]]; then
-      printf "Last output:\n%s\n" "$output" >> "$BATS_OUT"
-    fi 
+      if [[ $BATS_PRINT_OUTPUT_ON_FAILURE && -n "${output:-}" ]]; then
+        printf "Last output:\n%s\n" "$output" >> "$BATS_OUT"
+      fi 
 
-    print_bats_out=1
-    status=1
+      print_bats_out=1    
+      status=1
+      local state=failed
+    fi
   else
     printf 'ok %d %s%s\n' "$BATS_SUITE_TEST_NUMBER" "${BATS_TEST_NAME_PREFIX:-}${BATS_TEST_DESCRIPTION}${BATS_TEST_TIME}" \
       "$skipped" >&3
     status=0
+    local state=passed
   fi
 
-  if [[ $print_bats_out ]]; then
-    bats_prefix_lines_for_tap_output < "$BATS_OUT" | bats_replace_filename >&3
-  fi
+  if [[ -z "$should_retry" ]]; then
+    printf "%s %s\t%s\n" "$state" "$BATS_TEST_FILENAME" "$BATS_TEST_NAME" >> "$BATS_RUNLOG_FILE"
 
+    if [[ $print_bats_out ]]; then
+      bats_prefix_lines_for_tap_output < "$BATS_OUT" | bats_replace_filename >&3
+    fi
+  fi
   if [[ $BATS_GATHER_TEST_OUTPUTS_IN ]]; then
-    cp "$BATS_OUT" "$BATS_GATHER_TEST_OUTPUTS_IN/$BATS_SUITE_TEST_NUMBER-$BATS_TEST_DESCRIPTION.log"
+    local try_suffix=
+    if [[ -n "$should_retry" ]]; then
+      try_suffix="-try$BATS_TEST_TRY_NUMBER"
+    fi
+    cp "$BATS_OUT" "$BATS_GATHER_TEST_OUTPUTS_IN/$BATS_SUITE_TEST_NUMBER$try_suffix-$BATS_TEST_DESCRIPTION.log"
   fi
-
   rm -f "$BATS_OUT"
   exit "$status"
 }
@@ -197,31 +202,10 @@ bats_perform_test() {
     exit 1
   fi
 
-  # Variables for capturing accurate stack traces. See bats_debug_trap for
-  # details.
-  #
-  # BATS_DEBUG_LAST_LINENO, BATS_DEBUG_LAST_SOURCE, and
-  # BATS_DEBUG_LAST_STACK_TRACE hold data from the most recent call to
-  # bats_debug_trap.
-  #
-  # BATS_DEBUG_LASTLAST_STACK_TRACE holds data from two bats_debug_trap calls
-  # ago.
-  #
-  # BATS_DEBUG_LAST_STACK_TRACE_IS_VALID indicates that
-  # BATS_DEBUG_LAST_STACK_TRACE contains the stack trace of the test's error. If
-  # unset, BATS_DEBUG_LAST_STACK_TRACE is unreliable and
-  # BATS_DEBUG_LASTLAST_STACK_TRACE should be used instead.
-  BATS_DEBUG_LASTLAST_STACK_TRACE=()
-  BATS_DEBUG_LAST_LINENO=()
-  BATS_DEBUG_LAST_SOURCE=()
-  BATS_DEBUG_LAST_STACK_TRACE=()
-  BATS_DEBUG_LAST_STACK_TRACE_IS_VALID=
-
   BATS_TEST_COMPLETED=
   BATS_TEST_SKIPPED=
   BATS_TEARDOWN_COMPLETED=
   BATS_ERROR_STATUS=
-  BATS_ERROR_SUFFIX=
   bats_setup_tracing
   # mark this call as trap call
   trap 'bats_teardown_trap as-exit-trap' EXIT

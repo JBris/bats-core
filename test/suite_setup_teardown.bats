@@ -1,5 +1,6 @@
 load test_helper
 fixtures suite_setup_teardown
+bats_require_minimum_version 1.5.0
 
 setup() {
     export LOGFILE="$BATS_TEST_TMPDIR/log"
@@ -96,4 +97,10 @@ setup() {
     [ "${lines[3]}" == "not ok 2 teardown_suite" ]
     [ "${lines[4]}" == "# (from function \`teardown_suite' in test file $RELATIVE_FIXTURE_ROOT/failure_in_teardown_suite/setup_suite.bash, line 7)" ]
     [ "${lines[5]}" == "#   \`false' failed" ]
+}
+
+@test "stderr from setup/teardown_suite does not overtake stdout" {
+    run -0 --separate-stderr bats "$FIXTURE_ROOT/stderr_in_setup_teardown_suite/"
+    [[ "$output" == *$'setup_suite stdout\nsetup_suite stderr'* ]] || false
+    [[ "$output" == *$'teardown_suite stdout\nteardown_suite stderr'* ]] || false
 }

@@ -34,7 +34,7 @@ CONTRIBUTING.md file][atom].
 * [Contributing Guidelines](#contributing-guidelines)
   * [Welcome!](#welcome)
   * [Table of contents](#table-of-contents)
-  * [Quick links <g-emoji alias="link" fallback-src="https://assets-cdn.github.com/images/icons/emoji/unicode/1f517.png" ios-version="6.0">🔗</g-emoji>](#quick-links-)
+  * [Quick links](#quick-links)
   * [Contributor License Agreement](#contributor-license-agreement)
   * [Code of conduct](#code-of-conduct)
   * [Asking questions and reporting issues](#asking-questions-and-reporting-issues)
@@ -55,7 +55,7 @@ CONTRIBUTING.md file][atom].
   * [Open Source License](#open-source-license)
   * [Credits](#credits)
 
-## Quick links &#x1f517;
+## Quick links
 
 - [Gitter channel →][gitterurl]: Feel free to come chat with us on Gitter
 - [README →][README]
@@ -90,7 +90,7 @@ See also: ["Does my project need an additional contributor agreement? Probably
 
 ## Code of conduct
 
-Harrassment or rudeness of any kind will not be tolerated, period. For
+Harassment or rudeness of any kind will not be tolerated, period. For
 specifics, see the [CODE_OF_CONDUCT][] file.
 
 ## Asking questions and reporting issues
@@ -144,7 +144,7 @@ Also consider using:
 1. DO add information if you're facing a similar issue to someone else, but 
 within a different context (e.g. different steps needed to reproduce the issue 
 than previous stated, different version of Bash or BATS, different OS, etc.) 
-You can read on how to do that here: [Information to include][#information-to-include]
+You can read on how to do that here: [Information to include](#information-to-include)
 1. DO remember that you can use the *Subscribe* button on the right side of the
 page to receive notifications of further conversations or a resolution.
 
@@ -295,9 +295,9 @@ The following are intended to prevent too-compact code:
   the difference avoiding subshells makes.) Bash is quite powerful; see if you
   can do what you need in pure Bash first.
 - If you need to capture the output from a function, store the output using
-  `printf -v` instead if possible. `-v` specfies the name of the variable into
+  `printf -v` instead if possible. `-v` specifies the name of the variable into
   which to write the result; the caller can supply this name as a parameter.
-- If you must use command substituion, use `$()` instead of backticks, as it's
+- If you must use command substitution, use `$()` instead of backticks, as it's
   more robust, more searchable, and can be nested.
 
 [win-slow]: https://rufflewind.com/2014-08-23/windows-bash-slow

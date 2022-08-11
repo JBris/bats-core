@@ -1,3 +1,5 @@
+bats_require_minimum_version 1.5.0
+
 load 'test_helper'
 fixtures file_setup_teardown
 
@@ -75,7 +77,7 @@ setup_file() {
   [[ "${lines[3]}" == "# (from function \`teardown_file' in test file $RELATIVE_FIXTURE_ROOT/teardown_file_failed.bats, line 3)" ]]
   [[ "${lines[4]}" == "#   \`false' failed" ]]
   [[ "${lines[5]}" == "# bats warning: Executed 2 instead of expected 1 tests" ]] # for now this warning is expected
-  # for a failed teardown_file not to change the number of tests being reported, we would have to alter at least one provious test result report
+  # for a failed teardown_file not to change the number of tests being reported, we would have to alter at least one previous test result report
   # this would require arbitrary amounts of buffering so we simply add our own line with a fake test number
   # tripping the count validator won't change the overall result, as we already are in a failure mode
 }
@@ -94,7 +96,7 @@ not ok 1 failing test
 }
 
 @test "teardown_file should run even after user abort via CTRL-C" {
-  if [[ "$BATS_NUMBER_OF_PARALLEL_JOBS" -gt 1 ]]; then
+  if [[ "${BATS_NUMBER_OF_PARALLEL_JOBS:-1}" -gt 1 ]]; then
     skip "Aborts don't work in parallel mode"
   fi
   # shellcheck disable=SC2031,SC2030
@@ -164,16 +166,12 @@ ok 2 must not see variable from first run" ]]
   [ "${lines[3]}" == "#   \`false' failed" ]
 }
 
-@test "halfway teardown_file errors are caught and reported" {
-  run bats "$FIXTURE_ROOT/teardown_file_halfway_error.bats"
-  echo "$output"
-  [[ $status -ne 0 ]]
-  [[ "${lines[0]}" == "1..1" ]]
-  [[ "${lines[1]}" == "ok 1 empty" ]]
-  [[ "${lines[2]}" == "not ok 2 teardown_file failed" ]]
-  [[ "${lines[3]}" == "# (from function \`teardown_file' in test file $RELATIVE_FIXTURE_ROOT/teardown_file_halfway_error.bats, line 3)" ]]
-  [[ "${lines[4]}" == "#   \`false' failed" ]]
-  [[ "${lines[5]}" == "# bats warning: Executed 2 instead of expected 1 tests" ]] # for now this warning is expected
+@test "halfway teardown_file errors are ignored" {
+  run -0 bats "$FIXTURE_ROOT/teardown_file_halfway_error.bats"
+  [ "${lines[0]}" == "1..1" ]
+  [ "${lines[1]}" == "ok 1 empty" ]
+  [ "${#lines[@]}" -eq 2 ]
+  
 }
 
 @test "variables exported in setup_file are visible in tests" {
@@ -188,4 +186,13 @@ ok 2 must not see variable from first run" ]]
 
   [ ! -f "$LOG" ] # setup_file must not have been executed!
   [ "${lines[0]}" == '1..1' ] # but at least one test should have been run
+}
+
+@test "Failure in setup_file and teardown_file still prints error message" {
+  run ! bats "$FIXTURE_ROOT/error_in_setup_and_teardown_file.bats"
+  [ "${lines[0]}" == '1..1' ]
+  [ "${lines[1]}" == 'not ok 1 setup_file failed' ]
+  [ "${lines[2]}" == "# (from function \`setup_file' in test file $RELATIVE_FIXTURE_ROOT/error_in_setup_and_teardown_file.bats, line 2)" ]
+  [ "${lines[3]}" == "#   \`false' failed" ]
+  [ "${#lines[@]}" -eq 4 ]
 }

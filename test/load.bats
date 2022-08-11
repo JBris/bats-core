@@ -1,12 +1,14 @@
 #!/usr/bin/env bats
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   load test_helper
   fixtures load
 }
 
 @test "find_in_bats_lib_path recognizes files relative to test file" {
-  test_dir="$BATS_TEST_TMPDIR/find_in_bats_lib_path/bats_test_dirname_priorty"
+  test_dir="$BATS_TEST_TMPDIR/find_in_bats_lib_path/bats_test_dirname_priority"
   mkdir -p "$test_dir"
   cp "$FIXTURE_ROOT/test_helper.bash" "$test_dir/"
   cp "$FIXTURE_ROOT/find_library_helper.bats" "$test_dir"
@@ -15,7 +17,7 @@ setup() {
 }
 
 @test "find_in_bats_lib_path recognizes files in BATS_LIB_PATH" {
-  test_dir="$BATS_TEST_TMPDIR/find_in_bats_lib_path/bats_test_dirname_priorty"
+  test_dir="$BATS_TEST_TMPDIR/find_in_bats_lib_path/bats_test_dirname_priority"
   mkdir -p "$test_dir"
   cp "$FIXTURE_ROOT/test_helper.bash" "$test_dir/"
 
@@ -182,4 +184,12 @@ setup() {
   # shellcheck disable=SC2030,SC2031
   export BATS_LIB_PATH="$path_dir"
   run -1 bats "$FIXTURE_ROOT/failing_bats_load_library.bats"
+}
+
+@test "load in teardown after failure does not prevent test from being counted (see #609)" {
+  run -1 bats "$FIXTURE_ROOT/load_in_teardown_after_failure.bats"
+  [ "${lines[0]}" = 1..1 ]
+  [ "${lines[1]}" = "not ok 1 failed" ]
+  [ "${lines[3]}" = "#   \`false' failed" ]
+  [ ${#lines[@]} -eq 4 ]
 }

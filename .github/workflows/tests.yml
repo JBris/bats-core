@@ -32,6 +32,7 @@ jobs:
           - ''
           # allow for some parallelity without GNU parallel, since it is not installed by default
           - 'BATS_NO_PARALLELIZE_ACROSS_FILES=1 BATS_NUMBER_OF_PARALLEL_JOBS=2'
+          - 'BASH_ENV=${GITHUB_WORKSPACE}/.github/workflows/set_nounset.bash'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -117,7 +118,7 @@ jobs:
           TERM: linux # fix tput for tty issue work around
         run: |
           npm pack ./
-          # somehow there is already an intalled bats version around
+          # somehow there is already an installed bats version around
           npm install --force -g ./bats-*.tgz
           bats  --print-output-on-failure test  
 

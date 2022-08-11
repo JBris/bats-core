@@ -12,13 +12,57 @@ The format is based on [Keep a Changelog][kac] and this project adheres to
 
 ### Added
 
+* using external formatters via `--formatter <absolute path>` (also works for
+  `--report-formatter`) (#602)
+* running only tests that failed in the last run via `--filter-status failed` (#483)
+* variable `BATS_TEST_RETRIES` that specifies how often a test should be
+  reattempted before it is considered failed (#618)
+* Docker tags `latest-no-faccessat2` and `<bats-version\>-no-faccessat2` for
+  avoiding `bash: bats: No such file or directory` on `docker<20.10` (or
+  `runc<v1.0.0-rc93`) (#622)
+
+#### Documentation
+
+* update gotcha about negated statements: Recommend using `run !` on Bats
+  versions >=1.5.0 (#593)
+* add documentation for `bats_require_minimum_version` (#595)
+
+### Fixed
+
+* added missing shebang  (#597)
+* remaining instances of `run -<N>` being incorrectly documented as `run =<N>` (#599)
+* allow `--gather-test-outputs-in <directory>` to work with existing, empty
+  directories (#603)
+  * also add `--clean-and-gather-test-outputs-in <directory>` for improved UX
+* double slashes in paths derived from TMPDIR on MacOS (#607)
+* fix `load` in `teardown` marking failed tests as not run (#612)
+* fix unset variable errors (with set -u) and add regression test (#621)
+* `teardown_file` errors don't swallow `setup_file` errors anymore, the behavior
+  is more like `teardown`'s now (only `return`/last command can trigger `teardown`
+   errors) (#623)
+
+#### Documentation
+
+* fix typos, spelling and links (#596, #604, #619, #627)
+* fix redirection order of an example in the tutorial (#617)
+
+## [1.7.0] - 2022-05-14
+
+### Added
+
 * Pretty formatter print filename when entering file (#561)
 * BATS_TEST_NAME_PREFIX allows prefixing test names on stdout and in reports (#561)
 * setup_suite and teardown_suite (#571, #585)
+* out-of-band warning infrastructure, with following warnings:
+  * BW01: run command not found (exit code 127)  (#586)
+  * BW02: run uses flags without proper `bats_require_minimum_version` guard (#587)
+* `bats_require_minimum_version` to guard code that would not run on older
+  versions (#587)
 
 #### Documentation
 
 * document `$BATS_VERSION` (#557)
+* document new warning infrastructure (#589, #587, #586)
 
 ### Fixed
 
@@ -29,12 +73,34 @@ The format is based on [Keep a Changelog][kac] and this project adheres to
 * don't show empty lines as `#` with pretty formatter  (#561)
 * prevent `teardown`, `teardown_file`, and `teardown_suite` from overriding bats'
   exit code by setting `$status` (e.g. via calling `run`) (#581, #575)
+  * **CRITICAL**: this can return exit code 0 despite failed tests, thus preventing
+    your CI from reporting test failures! The regression happened in version 1.6.0.
 * `run --keep-empty-lines` now reports 0 lines on empty `$output` (#583)
 
 #### Documentation
 
 * remove 2018 in title, update copyright dates in README.md (#567)
 * fix broken links (#568)
+* corrected invalid documentation of `run -N` (had `=N` instead) (#579)
+  * **CRITICAL**: using the incorrect form can lead to silent errors. See
+    [issue #578](https://github.com/bats-core/bats-core/issues/578) for more
+    details and how to find out if your tests are affected.
+
+## [1.6.1] - 2022-05-14
+
+### Fixed
+
+* prevent `teardown`, `teardown_file`, and `teardown_suite` from overriding bats'
+  exit code by setting `$status` (e.g. via calling `run`) (#581, #575)
+  * **CRITICAL**: this can return exit code 0 despite failed tests, thus preventing
+    your CI from reporting test failures! The regression happened in version 1.6.0.
+
+#### Documentation
+
+* corrected invalid documentation of `run -N` (had `=N` instead) (#579)
+  * **CRITICAL**: using the incorrect form can lead to silent errors. See
+    [issue #578](https://github.com/bats-core/bats-core/issues/578) for more
+    details and how to find out if your tests are affected.
 
 ## [1.6.0] - 2022-02-24
 
@@ -154,7 +220,7 @@ quotes around code blocks in error output (#506)
 * custom test-file extension via `BATS_FILE_EXTENSION` when searching for test
   files in a directory (#376)
 * TAP13 formatter, including millisecond timing (#337)
-* automatic release to NPM via Github Actions (#406)
+* automatic release to NPM via GitHub Actions (#406)
 
 #### Documentation
 
@@ -170,7 +236,7 @@ quotes around code blocks in error output (#506)
     `--report-formatter junit` to obtain the `.xml` report file!
 * removed `--parallel-preserve-environment` flag, as this is the default
   behavior (#324)
-* moved CI from Travis/Appveyor to Github Actions (#405)
+* moved CI from Travis/AppVeyor to GitHub Actions (#405)
 * preprocessed files are no longer removed if `--no-tempdir-cleanup` is
   specified (#395)
 
@@ -356,7 +422,16 @@ Changes:
 
 * Initial public release.
 
-[Unreleased]: https://github.com/bats-core/bats-core/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/bats-core/bats-core/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/bats-core/bats-core/compare/v1.6.1...v1.7.0
+[1.6.1]: https://github.com/bats-core/bats-core/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/bats-core/bats-core/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/bats-core/bats-core/compare/v1.4.1...v1.5.0
+[1.4.1]: https://github.com/bats-core/bats-core/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/bats-core/bats-core/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/bats-core/bats-core/compare/v1.2.1...v1.3.0
+[1.2.1]: https://github.com/bats-core/bats-core/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/bats-core/bats-core/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/bats-core/bats-core/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/bats-core/bats-core/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/bats-core/bats-core/compare/v1.0.0...v1.0.1
